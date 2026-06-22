@@ -1,0 +1,135 @@
+name: CI/CD Pipeline
+
+# Trigger on push to any branch, and on pull requests to main/develop
+on:
+  push:
+    branches: [ main, develop, 'feature/**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+# ─────────────────────────────────────────────────────────────
+# Jobs run on the self-hosted runner in your Docker environment.
+# The runner container has Docker socket access, so it can
+# run docker cp / docker exec to deploy to staging/prod servers.
+# ─────────────────────────────────────────────────────────────
+
+jobs:
+
+  # ── Job 1: Run tests and generate coverage ──────────────────
+  test:
+    name: Test
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # full history needed for SonarQube blame
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm test -- --coverage --coverageReporters=lcov text
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 1
+
+  # ── Job 2: SonarQube code quality scan ──────────────────────
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: self-hosted
+    needs: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+
+      - name: SonarQube scan
+        # Runs scanner as a Docker container on the same devops-testing-net network
+        # so it can reach http://devops_sonarqube:9000 directly
+        run: |
+          docker run --rm \
+            --network devops-testing-net \
+            -e SONAR_HOST_URL=http://devops_sonarqube:9000 \
+            -e SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} \
+            -v "$PWD:/usr/src" \
+            sonarsource/sonar-scanner-cli:latest \
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} \
+            -Dsonar.sources=. \
+            -Dsonar.exclusions=node_modules/**,coverage/** \
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+
+  # ── Job 3: Deploy to Staging (on push to develop) ───────────
+  deploy-staging:
+    name: Deploy → Staging
+    runs-on: self-hosted
+    needs: test
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: http://localhost:8081
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to staging container
+        run: |
+          echo "Deploying to staging..."
+          docker cp app/. devops_staging:/usr/share/nginx/html/
+          docker exec devops_staging nginx -s reload
+          echo "Deployed: http://localhost:8081"
+
+      - name: Verify staging
+        run: |
+          sleep 2
+          curl -f --retry 3 http://devops_staging:80 -o /dev/null -s \
+            && echo "Staging OK" \
+            || (echo "Staging health check failed" && exit 1)
+
+  # ── Job 4: Deploy to Production (on push to main) ───────────
+  deploy-production:
+    name: Deploy → Production
+    runs-on: self-hosted
+    needs: [test, sonarqube]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: http://localhost:8082
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to production container
+        run: |
+          echo "Deploying to production..."
+          docker cp app/. devops_prod:/usr/share/nginx/html/
+          docker exec devops_prod nginx -s reload
+          echo "Deployed: http://localhost:8082"
+
+      - name: Verify production
+        run: |
+          sleep 2
+          curl -f --retry 3 http://devops_prod:80 -o /dev/null -s \
+            && echo "Production OK" \
+            || (echo "Production health check failed" && exit 1)

@@ -1,0 +1,12 @@
+{
+  "name": "devops-test-app",
+  "version": "1.0.0",
+  "description": "Sample app for testing RedmineFlux DevOps plugin",
+  "scripts": {
+    "test": "jest --coverage",
+    "build": "echo 'Build complete'"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}

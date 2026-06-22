@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My App — DevOps Test</title>
+  <style>
+    body { font-family: sans-serif; display: flex; flex-direction: column;
+           align-items: center; justify-content: center; min-height: 100vh;
+           margin: 0; background: #f0f4f8; }
+    .card { background: white; padding: 2rem 3rem; border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; }
+    h1 { color: #2d5be3; margin: 0 0 0.5rem; }
+    .badge { display: inline-block; background: #e3f2fd; color: #1565c0;
+             padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; margin-top: 1rem; }
+    .env { font-size: 0.75rem; color: #999; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>My DevOps Test App</h1>
+    <p>This page was deployed automatically via GitHub Actions.</p>
+    <div class="badge">v1.0.0</div>
+    <p class="env">Environment: <strong id="env">staging</strong></p>
+  </div>
+</body>
+</html>

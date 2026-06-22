@@ -1,27 +1,21 @@
 name: CI/CD Pipeline
 
-# Trigger on push to any branch, and on pull requests to main/develop
 on:
   push:
     branches: [ main, master, develop, 'feature/**' ]
+
   pull_request:
     branches: [ main, master, develop ]
+
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Branch to deploy'
-        required: false
+        description: 'Branch to deploy (develop/master)'
+        required: true
         default: 'master'
-
-# ─────────────────────────────────────────────────────────────
-# Jobs run on the self-hosted runner in your Docker environment.
-# The runner container has Docker socket access, so it can
-# run docker cp / docker exec to deploy to staging/prod servers.
-# ─────────────────────────────────────────────────────────────
 
 jobs:
 
-  # ── Job 1: Run tests and generate coverage ──────────────────
   test:
     name: Test
     runs-on: self-hosted
@@ -30,7 +24,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0    # full history needed for SonarQube blame
+          fetch-depth: 0
+
+      - name: Debug Input
+        run: |
+          echo "event=${{ github.event_name }}"
+          echo "github.ref=${{ github.ref }}"
+          echo "input.ref=${{ github.event.inputs.ref }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -50,7 +50,6 @@ jobs:
           path: coverage/
           retention-days: 1
 
-  # ── Job 2: SonarQube code quality scan ──────────────────────
   sonarqube:
     name: SonarQube Scan
     runs-on: self-hosted
@@ -68,7 +67,7 @@ jobs:
           name: coverage
           path: coverage/
 
-      - name: SonarQube scan
+      - name: SonarQube Scan
         run: |
           docker run --rm \
             --network devops-testing-net \
@@ -82,12 +81,15 @@ jobs:
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
             -Dsonar.scm.revision=${{ github.sha }}
 
-  # ── Job 3: Deploy to Staging (on push to develop) ───────────
   deploy-staging:
     name: Deploy → Staging
     runs-on: self-hosted
-    needs: test
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    needs: [test, sonarqube]
+
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.ref == 'develop'
+
     environment:
       name: staging
       url: http://localhost:8081
@@ -96,26 +98,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to staging container
+      - name: Deploy to Staging
         run: |
           echo "Deploying to staging..."
           docker cp app/. devops_staging:/usr/share/nginx/html/
           docker exec devops_staging nginx -s reload
-          echo "Deployed: http://localhost:8081"
 
-      - name: Verify staging
+      - name: Verify Staging
         run: |
           sleep 2
-          curl -f --retry 3 http://devops_staging:80 -o /dev/null -s \
-            && echo "Staging OK" \
-            || (echo "Staging health check failed" && exit 1)
+          curl -f --retry 3 http://devops_staging:80 -o /dev/null -s
 
-  # ── Job 4: Deploy to Production (on push to main) ───────────
   deploy-production:
     name: Deploy → Production
     runs-on: self-hosted
     needs: [test, sonarqube]
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.ref == 'master'
+
     environment:
       name: production
       url: http://localhost:8082
@@ -124,17 +126,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to production container
+      - name: Deploy to Production
         run: |
           echo "Deploying to production..."
           docker cp app/. devops_prod:/usr/share/nginx/html/
           docker exec devops_prod sed -i 's/>staging</>production</g' /usr/share/nginx/html/index.html
           docker exec devops_prod nginx -s reload
-          echo "Deployed: http://localhost:8082"
 
-      - name: Verify production
+      - name: Verify Production
         run: |
           sleep 2
-          curl -f --retry 3 http://devops_prod:80 -o /dev/null -s \
-            && echo "Production OK" \
-            || (echo "Production health check failed" && exit 1)
+          curl -f --retry 3 http://devops_prod:80 -o /dev/null -s

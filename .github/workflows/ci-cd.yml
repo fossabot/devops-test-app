@@ -3,9 +3,9 @@ name: CI/CD Pipeline
 # Trigger on push to any branch, and on pull requests to main/develop
 on:
   push:
-    branches: [ main, develop, 'feature/**' ]
+    branches: [ main, master, develop, 'feature/**' ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, master, develop ]
 
 # ─────────────────────────────────────────────────────────────
 # Jobs run on the self-hosted runner in your Docker environment.
@@ -64,16 +64,14 @@ jobs:
           path: coverage/
 
       - name: SonarQube scan
-        # Runs scanner as a Docker container on the same devops-testing-net network
-        # so it can reach http://devops_sonarqube:9000 directly
         run: |
           docker run --rm \
             --network devops-testing-net \
-            -e SONAR_HOST_URL=http://devops_sonarqube:9000 \
+            -e SONAR_HOST_URL=${{ secrets.SONAR_HOST_URL }} \
             -e SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} \
             -v "$PWD:/usr/src" \
             sonarsource/sonar-scanner-cli:latest \
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }} \
+            -Dsonar.projectKey=devops-test-app \
             -Dsonar.sources=. \
             -Dsonar.exclusions=node_modules/**,coverage/** \
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info

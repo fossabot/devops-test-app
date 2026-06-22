@@ -6,6 +6,12 @@ on:
     branches: [ main, master, develop, 'feature/**' ]
   pull_request:
     branches: [ main, master, develop ]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch to deploy'
+        required: false
+        default: 'master'
 
 # ─────────────────────────────────────────────────────────────
 # Jobs run on the self-hosted runner in your Docker environment.

@@ -1,12 +1,18 @@
 name: CI/CD Pipeline
 
 on:
+  push:
+    branches: [ main, master, develop, 'feature/**' ]
+
+  pull_request:
+    branches: [ main, master, develop ]
+
   workflow_dispatch:
     inputs:
       ref:
         description: 'Branch to deploy (develop/master)'
         required: true
-        default: ''
+        default: 'develop'
 
 jobs:
 
@@ -15,31 +21,24 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Debug Input
-        run: |
-          echo "event=${{ github.event_name }}"
-          echo "github.ref=${{ github.ref }}"
-          echo "input.ref=${{ github.event.inputs.ref }}"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install dependencies
-        run: npm install
+      - run: npm install
 
-      - name: Run tests
-        run: npm test -- --coverage --coverageReporters=lcov text
+      - run: npm test -- --coverage --coverageReporters=lcov text
 
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: coverage
           path: coverage/
+
 
   sonarqube:
     name: SonarQube Scan
@@ -47,17 +46,16 @@ jobs:
     needs: test
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Download coverage
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: coverage
           path: coverage/
 
-      - name: SonarQube Scan
-        run: |
+      - run: |
           docker run --rm \
             --network devops-testing-net \
             -e SONAR_HOST_URL=${{ secrets.SONAR_HOST_URL }} \
@@ -67,22 +65,25 @@ jobs:
             -Dsonar.projectKey=devops-test-app \
             -Dsonar.sources=. \
             -Dsonar.exclusions=node_modules/**,coverage/** \
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+            -Dsonar.scm.revision=${{ github.sha }}
+
 
   deploy-staging:
     name: Deploy → Staging
     runs-on: self-hosted
     needs: [test, sonarqube]
 
-    if: ${{ github.event.inputs.ref == 'develop' }}
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.ref == 'develop')
+      || github.ref == 'refs/heads/develop'
 
     environment:
       name: staging
       url: http://localhost:8081
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Deploy to Staging
         run: |
@@ -90,33 +91,26 @@ jobs:
           docker cp app/. devops_staging:/usr/share/nginx/html/
           docker exec devops_staging nginx -s reload
 
-      - name: Verify Staging
-        run: |
-          sleep 2
-          curl -f --retry 3 http://devops_staging:80
 
   deploy-production:
     name: Deploy → Production
     runs-on: self-hosted
     needs: [test, sonarqube]
 
-    if: ${{ github.event.inputs.ref == 'master' }}
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.ref == 'master')
+      || github.ref == 'refs/heads/master'
 
     environment:
       name: production
       url: http://localhost:8082
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Deploy to Production
         run: |
           echo "Deploying to production..."
           docker cp app/. devops_prod:/usr/share/nginx/html/
+          docker exec devops_prod sed -i 's/>staging</>production</g' /usr/share/nginx/html/index.html
           docker exec devops_prod nginx -s reload
-
-      - name: Verify Production
-        run: |
-          sleep 2
-          curl -f --retry 3 http://devops_prod:80

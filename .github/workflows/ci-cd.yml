@@ -76,7 +76,7 @@ jobs:
 
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.ref == 'develop')
-      || github.ref == 'refs/heads/develop'
+      || (github.event_name == 'push' && github.ref == 'refs/heads/develop')
 
     environment:
       name: staging
@@ -99,7 +99,7 @@ jobs:
 
     if: >
       (github.event_name == 'workflow_dispatch' && github.event.inputs.ref == 'master')
-      || github.ref == 'refs/heads/master'
+      || (github.event_name == 'push' && github.ref == 'refs/heads/master')
 
     environment:
       name: production

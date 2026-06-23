@@ -58,7 +58,7 @@ jobs:
       - run: |
           docker run --rm \
             --network devops-testing-net \
-            -e SONAR_HOST_URL=http://devops_sonarqube:9000 \
+            -e SONAR_HOST_URL=http://sonarqube:9000 \
             -e SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} \
             -v "$PWD:/usr/src" \
             sonarsource/sonar-scanner-cli:11.1 \

@@ -1,0 +1,65 @@
+name: Deploy → Staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ develop ]
+
+jobs:
+
+  test:
+    name: Test
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npm test -- --coverage --coverageReporters=lcov text
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-staging
+          path: coverage/
+
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: self-hosted
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage-staging
+          path: coverage/
+      - run: |
+          docker run --rm \
+            --network devops-testing-net \
+            -e SONAR_HOST_URL=http://sonarqube:9000 \
+            -e SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} \
+            -v "$PWD:/usr/src" \
+            sonarsource/sonar-scanner-cli:11.1 \
+            -Dsonar.projectKey=devops-test-app \
+            -Dsonar.sources=. \
+            -Dsonar.exclusions=node_modules/**,coverage/** \
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+            -Dsonar.scm.revision=${{ github.sha }}
+
+  deploy:
+    name: Deploy → Staging
+    runs-on: self-hosted
+    needs: [test, sonarqube]
+    environment:
+      name: staging
+      url: http://localhost:8081
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Staging
+        run: |
+          echo "Deploying to staging..."
+          docker cp app/. devops_staging:/usr/share/nginx/html/
+          docker exec devops_staging nginx -s reload

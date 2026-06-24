@@ -52,8 +52,8 @@ jobs:
           args: >
             -Dsonar.projectKey=devops-test-app
             -Dsonar.sources=.
-            -Dsonar.inclusions=**/*.js,**/*.py,**/*.java
-            -Dsonar.exclusions=node_modules/**,coverage/**,dist/**
+            -Dsonar.inclusions=**/*.js,**/*.py
+            -Dsonar.exclusions=node_modules/**,coverage/**,dist/**,**/*.java
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
   deploy:

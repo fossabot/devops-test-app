@@ -53,8 +53,10 @@ jobs:
             -v "$PWD:/usr/src" \
             sonarsource/sonar-scanner-cli:11.1 \
             -Dsonar.projectKey=devops-test-app-master \
-            -Dsonar.sources=. \
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+            -Dsonar.projectBaseDir=/usr/src \
+            -Dsonar.sources=/usr/src \
+            -Dsonar.exclusions=/usr/src/node_modules/**,/usr/src/coverage/**,/usr/src/dist/** \
+            -Dsonar.javascript.lcov.reportPaths=/usr/src/coverage/lcov.info \
             -Dsonar.scm.revision=${{ github.sha }}
 
   deploy:

@@ -54,16 +54,12 @@ jobs:
             -e SONAR_HOST_URL=http://sonarqube:9000 \
             -e SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} \
             -v "$PWD:/usr/src" \
-            sonarsource/sonar-scanner-cli:11.1 \
-            -X \
+            sonarsource/sonar-scanner-cli:5.0.1 \
             -Dsonar.projectKey=devops-test-app-master \
-            -Dsonar.projectName="devops test app" \
-            -Dsonar.projectVersion=1.0 \
             -Dsonar.projectBaseDir=/usr/src \
-            -Dsonar.sources=. \
-            -Dsonar.exclusions=node_modules/**,coverage/**,dist/** \
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-            -Dsonar.sourceEncoding=UTF-8 \
+            -Dsonar.sources=/usr/src \
+            -Dsonar.exclusions=**/node_modules/**,**/coverage/**,**/dist/** \
+            -Dsonar.javascript.lcov.reportPaths=/usr/src/coverage/lcov.info \
             -Dsonar.scm.revision=${{ github.sha }}
 
   deploy:

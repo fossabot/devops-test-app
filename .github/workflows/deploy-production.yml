@@ -25,40 +25,47 @@ jobs:
           path: coverage/
 
   sonarqube:
-    name: SonarQube Scan
-    runs-on: self-hosted
-    needs: test
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/download-artifact@v4
-        with:
-          name: coverage-production
-          path: coverage/
-      - name: Debug - List files
-        run: |
-          echo "=== PWD ==="
-          pwd
-          echo "=== Root JS files ==="
-          ls -la *.js *.py *.json 2>/dev/null || echo "No files at root"
-          echo "=== All JS/PY files ==="
-          find . -name "*.js" -not -path "*/node_modules/*" | head -20
-          find . -name "*.py" | head -10
-      - run: |
-          docker run --rm \
-            --network devops-testing-net \
-            -e SONAR_HOST_URL=http://sonarqube:9000 \
-            -e SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} \
-            -v "$PWD:/usr/src" \
-            sonarsource/sonar-scanner-cli:11.1 \
-            -Dsonar.projectKey=devops-test-app-master \
-            -Dsonar.projectBaseDir=/usr/src \
-            -Dsonar.sources=/usr/src \
-            -Dsonar.exclusions=/usr/src/node_modules/**,/usr/src/coverage/**,/usr/src/dist/** \
-            -Dsonar.javascript.lcov.reportPaths=/usr/src/coverage/lcov.info \
-            -Dsonar.scm.revision=${{ github.sha }}
+  name: SonarQube Scan
+  runs-on: self-hosted
+  needs: test
 
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download coverage report
+      uses: actions/download-artifact@v4
+      with:
+        name: coverage-production
+        path: coverage/
+
+    - name: Debug - List repository files
+      run: |
+        echo "=== Current Directory ==="
+        pwd
+        echo "=== Repository Files ==="
+        find . -type f | head -100
+
+    - name: SonarQube Scan
+      run: |
+        docker run --rm \
+          --network devops-testing-net \
+          -e SONAR_HOST_URL=http://sonarqube:9000 \
+          -e SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} \
+          -v "$PWD:/usr/src" \
+          sonarsource/sonar-scanner-cli:11.1 \
+          -X \
+          -Dsonar.projectKey=devops-test-app-master \
+          -Dsonar.projectName="devops test app" \
+          -Dsonar.projectVersion=1.0 \
+          -Dsonar.projectBaseDir=/usr/src \
+          -Dsonar.sources=. \
+          -Dsonar.exclusions=node_modules/**,coverage/**,dist/** \
+          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+          -Dsonar.sourceEncoding=UTF-8 \
+          -Dsonar.scm.revision=${{ github.sha }}
   deploy:
     name: Deploy → Production
     runs-on: self-hosted

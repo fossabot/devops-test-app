@@ -43,7 +43,7 @@ jobs:
             -e SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} \
             -v "$PWD:/usr/src" \
             sonarsource/sonar-scanner-cli:11.1 \
-            -Dsonar.projectKey=devops-test-app \
+            -Dsonar.projectKey=devops-test-app-master \
             -Dsonar.sources=. \
             -Dsonar.inclusions=**/*.js,**/*.py \
             -Dsonar.exclusions=node_modules/**,coverage/**,**/*.java \

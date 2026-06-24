@@ -50,7 +50,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectKey=devops-test-app
+            -Dsonar.projectKey=devops-test-app-master
             -Dsonar.sources=.
             -Dsonar.inclusions=**/*.js,**/*.py
             -Dsonar.exclusions=node_modules/**,coverage/**,dist/**,**/*.java

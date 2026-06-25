@@ -13,3 +13,4 @@ module.exports = sum;
 // feat: add user profile settings page
 // fix: handle edge case in sum validation
 // feat: add export report feature
+// feat!: breaking change - new payment API

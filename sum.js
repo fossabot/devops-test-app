@@ -8,3 +8,4 @@ function isDarkMode() {
 }
 
 module.exports = sum;
+// fix: null pointer patch

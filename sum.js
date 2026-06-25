@@ -20,3 +20,4 @@ module.exports = sum;
 // test: add unit tests
 // refactor: extract helper function
 // perf: improve query performance
+// perf: cache expensive calculation

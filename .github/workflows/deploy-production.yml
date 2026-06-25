@@ -30,7 +30,7 @@ jobs:
           REDMINE_API_KEY: ${{ secrets.REDMINE_API_KEY }}
           REDMINE_PROJECT: ${{ secrets.REDMINE_PROJECT }}
           WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
-          BUILD_ID: ${{ github.run_id }}
+          BUILD_ID: ${{ github.run_id }}:${{ github.run_attempt }}
         run: |
           if [ -d "test-results" ]; then
             for file in test-results/*.xml; do

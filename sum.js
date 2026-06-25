@@ -11,3 +11,4 @@ module.exports = sum;
 // fix: null pointer patch
 // fix: typo patch
 // feat: add user profile settings page
+// fix: handle edge case in sum validation

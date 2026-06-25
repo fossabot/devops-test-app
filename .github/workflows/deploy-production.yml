@@ -23,6 +23,22 @@ jobs:
         with:
           name: coverage-production
           path: coverage/
+      - name: Upload test results to Redmine
+        if: always()
+        env:
+          REDMINE_URL: ${{ secrets.REDMINE_URL }}
+          REDMINE_API_KEY: ${{ secrets.REDMINE_API_KEY }}
+          REDMINE_PROJECT: ${{ secrets.REDMINE_PROJECT }}
+        run: |
+          if [ -d "test-results" ]; then
+            for file in test-results/*.xml; do
+              echo "Uploading $file to Redmine..."
+              curl -s -X POST \
+                -H "X-Redmine-API-Key: $REDMINE_API_KEY" \
+                -F "file=@$file" \
+                "$REDMINE_URL/devops/webhook/github/$REDMINE_PROJECT/test_results"
+            done
+          fi
 
   sonarqube:
     name: SonarQube Scan

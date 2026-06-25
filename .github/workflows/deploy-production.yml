@@ -40,7 +40,7 @@ jobs:
                 -H "X-Redmine-API-Key: $REDMINE_API_KEY" \
                 --data-binary @"$file" \
                 -H "Content-Type: application/xml" \
-                "$REDMINE_URL/devops/webhook/github/$REDMINE_PROJECT/test_results"
+                "$REDMINE_URL/devops/webhook/github/$REDMINE_PROJECT/test_results?build_external_id=$GITHUB_RUN_ID"
             done
           fi
 

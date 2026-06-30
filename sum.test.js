@@ -39,8 +39,8 @@ test('checkAge returns invalid for negative age [issue-3]', () => {
 
 // ── Issue #5: Total computation ───────────────────────────────────────────────
 
-test('computeTotal always returns 0 regardless of inputs [issue-5]', () => {
-  expect(computeTotal(5, 10)).toBe(0);
+test('computeTotal returns correct sum of inputs [issue-5]', () => {
+  expect(computeTotal(5, 10)).toBe(15);
 });
 
 test('calculate returns correct sum ignoring unused variables [issue-5]', () => {

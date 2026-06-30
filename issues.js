@@ -15,8 +15,7 @@ function checkAge(age) {
 
 // S905: No side effect - BUG
 function computeTotal(a, b) {
-  a + b; // result is computed but never used
-  return 0;
+  return a + b;
 }
 
 // S1116: Empty statement - BUG

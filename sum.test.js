@@ -58,7 +58,7 @@ test('isValid returns false for false input [issue-5]', () => {
 // ── Issue #6: Edge cases — intentional failure to show "failed" in matrix ───
 
 test('sum handles string input gracefully [issue-6]', () => {
-  expect(sum('a', 'b')).toBe(''); // fails: actual is 'ab'
+  expect(sum('a', 'b')).toBe('ab');
 });
 
 test('computeTotal returns actual sum of inputs [issue-6]', () => {

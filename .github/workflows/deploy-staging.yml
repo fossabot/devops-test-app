@@ -59,46 +59,12 @@ jobs:
           RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
           if [ -z "${WEBHOOK_SECRET}" ]; then
-            echo "REDMINE_WEBHOOK_SECRET not configured — skipping notification"
+            echo "REDMINE_WEBHOOK_SECRET not configured - skipping"
             exit 0
           fi
-
-          # Get GitHub deployment ID created for this commit + environment
-          DEPLOY_ID=$(curl -s \
-            -H "Authorization: token ${GH_TOKEN}" \
-            "https://api.github.com/repos/${REPO}/deployments?sha=${COMMIT_SHA}&environment=staging&per_page=1" \
-            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['id'] if d else 0)")
-
-          # Build deployment_status payload using Python for correct JSON encoding
-          PAYLOAD=$(DEPLOY_ID="${DEPLOY_ID}" python3 -c "
-import json, os
-print(json.dumps({
-    'deployment': {
-        'id': int(os.environ.get('DEPLOY_ID', 0)),
-        'sha': os.environ['COMMIT_SHA'],
-        'ref': os.environ['REF_NAME'],
-        'environment': 'staging',
-        'description': 'Deployed via GitHub Actions',
-        'creator': {'login': os.environ['ACTOR']}
-    },
-    'deployment_status': {
-        'state': 'success',
-        'target_url': 'https://github.com/' + os.environ['REPO'] + '/actions/runs/' + os.environ['RUN_ID'],
-        'environment_url': 'http://localhost:8081'
-    },
-    'sender': {'login': os.environ['ACTOR']}
-}))
-")
-
-          # HMAC-SHA256 sign the payload with the Redmine webhook secret
+          DEPLOY_ID=$(curl -s -H "Authorization: token ${GH_TOKEN}" "https://api.github.com/repos/${REPO}/deployments?sha=${COMMIT_SHA}&environment=staging&per_page=1" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['id'] if d else 0)")
+          RUN_URL="https://github.com/${REPO}/actions/runs/${RUN_ID}"
+          PAYLOAD=$(jq -cn --argjson id "${DEPLOY_ID}" --arg sha "${COMMIT_SHA}" --arg ref "${REF_NAME}" --arg actor "${ACTOR}" --arg url "${RUN_URL}" '{"deployment":{"id":$id,"sha":$sha,"ref":$ref,"environment":"staging","description":"Deployed via GitHub Actions","creator":{"login":$actor}},"deployment_status":{"state":"success","target_url":$url,"environment_url":"http://localhost:8081"},"sender":{"login":$actor}}')
           SIG="sha256=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${WEBHOOK_SECRET}" | awk '{print $NF}')"
-
-          # POST directly to Redmine via host.docker.internal — bypasses ngrok entirely
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            -H "Content-Type: application/json" \
-            -H "X-GitHub-Event: deployment_status" \
-            -H "X-Hub-Signature-256: ${SIG}" \
-            -H "X-GitHub-Delivery: direct-${RUN_ID}-${RUN_ATTEMPT}" \
-            -d "${PAYLOAD}" \
-            http://host.docker.internal:3006/devops/webhook/github/test-project) || true
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Content-Type: application/json" -H "X-GitHub-Event: deployment_status" -H "X-Hub-Signature-256: ${SIG}" -H "X-GitHub-Delivery: direct-${RUN_ID}-${RUN_ATTEMPT}" -d "${PAYLOAD}" http://host.docker.internal:3006/devops/webhook/github/test-project) || true
           echo "Redmine notified: HTTP ${HTTP_STATUS}"
